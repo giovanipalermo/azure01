@@ -1,0 +1,70 @@
+# Select Azure Subscription
+# Select Azure Resource Group
+$subscriptionName = "ASIA-JLT-PROD"
+$rgName = "BRIDGES-RG-ASE-UAT-01"
+
+
+# Sign-in with Azure account credentials
+Login-AzureRmAccount -SubscriptionName $subscriptionName
+
+  
+# Download current list of Azure Public IP ranges
+# See this link for latest list
+$downloadUri = "https://www.microsoft.com/en-in/download/confirmation.aspx?id=41653"
+$downloadPage = Invoke-WebRequest -Uri $downloadUri
+$xmlFileUri = ($downloadPage.RawContent.Split('"') -like "https://*PublicIps*")[0]
+$response = Invoke-WebRequest -Uri $xmlFileUri
+
+# Get list of regions & public IP ranges
+[xml]$xmlResponse = [System.Text.Encoding]::UTF8.GetString($response.Content)
+$regions = $xmlResponse.AzurePublicIpAddresses.Region
+
+
+# Select Azure regions for which to define NSG rules
+
+$selectedRegions = "asiasoutheast"
+$ipRange = ( $regions | where-object Name -In $selectedRegions ).IpRange
+
+
+# Build NSG rules
+$rules = @()
+$rulePriority = 100
+
+# Create Network Security Group
+$nsgName = "test1"
+# Set Azure region in which to create NSG
+$location = "southeastasia"
+
+ForEach ($subnet in $ipRange.Subnet) {
+    $ruleName = "Allow_Internet_Out_" + $subnet.Replace("/","-")
+    
+	Get-AzureRmNetworkSecurityGroup -Name $nsgName -ResourceGroupName $RGName | 
+            Add-AzureRmNetworkSecurityRuleConfig `
+            -Name $ruleName `
+            -Description "Allow outbound to Azure $subnet" `
+            -Access Allow `
+            -Protocol * `
+            -Direction Outbound `
+            -Priority $rulePriority `
+            -SourceAddressPrefix VirtualNetwork `
+            -SourcePortRange * `
+            -DestinationAddressPrefix "$subnet" `
+            -DestinationPortRange * |
+	Set-AzureRmNetworkSecurityGroup
+    $rulePriority++
+}
+
+# Define deny rule for all other traffic to Internet
+Get-AzureRmNetworkSecurityGroup -Name $nsgName -ResourceGroupName $RGName |
+    Add-AzureRmNetworkSecurityRuleConfig `
+        -Name "Deny_Internet_Out" `
+        -Description "Deny outbound to Internet" `
+        -Access Deny `
+        -Protocol * `
+        -Direction Outbound `
+        -Priority 4001 `
+        -SourceAddressPrefix VirtualNetwork `
+        -SourcePortRange * `
+        -DestinationAddressPrefix Internet `
+        -DestinationPortRange * |
+     Set-AzureRmNetworkSecurityGroup 
