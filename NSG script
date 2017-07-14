@@ -1,1 +1,6 @@
 https://gallery.technet.microsoft.com/Managing-Azure-Network-68bb904a/view/Discussions#content
+
+Here are some examples of how to invoke the new cmdlets:
+New-AzureRmCustomNetworkSecurityGroup -CSVPath C:\AzureNetworkSecuriyGroupRules\RulesARM.csv -AzureLocation "North Europe" -ResourceGroupName TEST-RG -NetworkSecurityGroupName NSG-DMZ-1 -Tags @{Name="State";Value="Production"}
+Update-AzureRmCustomNetworkSecurityGroup -CSVPath C:\AzureNetworkSecuriyGroupRules\RulesARM.csv -ResourceGroupName TEST-RG -NetworkSecurityGroupName NSG-DMZ-1
+Export-AzureRmNetworkSecurityGroup -CSVPath C:\AzureNetworkSecuriyGroupRules\RulesARM.csv -ResourceGroupName TEST-RG -NetworkSecurityGroupName NSG-DMZ-1
